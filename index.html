@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расписание</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:12px;background:#f5f5f5;color:#111}
+  h1{font-size:20px;margin:8px 0 4px}
+  select{font-size:16px;padding:6px;margin:8px 0;width:100%}
+  #status{font-size:13px;color:#666;margin-bottom:12px}
+  .warn{background:#fff3cd;padding:8px;border-radius:6px;font-size:14px;margin-bottom:10px}
+  .pair{background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .num{font-size:13px;color:#2563eb;font-weight:bold}
+  .lesson{margin-top:4px}
+  .meta{font-size:13px;color:#555}
+  .empty{color:#666;padding:20px 0;text-align:center}
+</style>
+</head>
+<body>
+<h1 id="title">Расписание</h1>
+<select id="group"></select>
+<div id="status">Загрузка...</div>
+<div id="app"></div>
+
+<script>
+const CSV_LINK = "https://docs.google.com/spreadsheets/d/1bADiWZSKqhi4p92eLVYF-Xd2HOK4TA_-Di2C8bB2Ufk/gviz/tq?tqx=out:csv&gid=1324664116";
+const REFRESH_MS = 120000;
+const KEY_CSV = "schedule_csv";
+const KEY_GROUP = "schedule_group";
+const WEEKDAYS = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+const DAY_RE = /^\s*(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)\s+(\d{2}\.\d{2}\.\d{4})/i;
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; } else q = false;
+      } else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else if (c !== "\r") cell += c;
+  }
+  row.push(cell);
+  rows.push(row);
+  return rows;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function getGroups(rows) {
+  const head = rows[0] || [];
+  const groups = [];
+  for (let c = 3; c < head.length; c++) {
+    const n = (head[c] || "").trim();
+    if (n && n.toLowerCase() !== "ауд") groups.push({ name: n, col: c });
+  }
+  if (groups.length) return groups;
+  return [3, 5, 7, 9].map((c, i) => ({ name: "Группа " + (i + 1), col: c }));
+}
+
+function parseDays(rows) {
+  const days = [];
+  rows.forEach((row, i) => {
+    if (i === 0) return;
+    const m = (row[0] || "").match(DAY_RE);
+    if (m) days.push({ name: m[1].toLowerCase(), date: m[2], rows: [] });
+    if (days.length) days[days.length - 1].rows.push(row);
+  });
+  return days;
+}
+
+function splitLesson(text) {
+  const parts = text.replace(/\s+/g, " ").split(/ преподаватель /i);
+  return { subject: parts[0].trim(), teacher: (parts[1] || "").trim() };
+}
+
+const fixTime = s => s.replace(/\./g, ":");
+
+function span(a, b) {
+  return fixTime(a.split("-")[0]) + "-" + fixTime((b || a).split("-")[1] || "");
+}
+
+function draw(rows, col) {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+  const now = new Date();
+  const today = WEEKDAYS[now.getDay()];
+  const todayStr = String(now.getDate()).padStart(2, "0") + "." +
+    String(now.getMonth() + 1).padStart(2, "0") + "." + now.getFullYear();
+  document.getElementById("title").textContent =
+    today[0].toUpperCase() + today.slice(1) + ", " + todayStr;
+
+  const day = parseDays(rows).find(d => d.name === today);
+  if (!day) {
+    app.appendChild(el("div", "empty", "Сегодня в таблице занятий нет"));
+    return;
+  }
+  if (day.date !== todayStr) {
+    app.appendChild(el("div", "warn",
+      "В таблице для этого дня стоит дата " + day.date + ". Возможно, неделя еще не обновлена."));
+  }
+
+  let any = false;
+  for (let i = 0; i < day.rows.length; i += 2) {
+    const pr = day.rows.slice(i, i + 2);
+    const cells = pr.map(r => ({
+      time: (r[2] || "").trim(),
+      text: (r[col] || "").trim(),
+      room: (r[col + 1] || "").trim()
+    }));
+    const filled = cells.filter(c => c.text);
+    if (!filled.length) continue;
+
+    const same = cells.length === 2 && cells[0].text &&
+      cells[0].text === cells[1].text && cells[0].room === cells[1].room;
+    const items = same
+      ? [{ ...cells[0], time: span(cells[0].time, cells[1].time) }]
+      : filled.map(c => ({ ...c, time: fixTime(c.time) }));
+
+    const card = el("div", "pair");
+    const num = (pr[0][1] || "").trim() || String(i / 2 + 1);
+    card.appendChild(el("div", "num", num + " пара"));
+    items.forEach(c => {
+      const l = splitLesson(c.text);
+      const box = el("div", "lesson");
+      box.appendChild(el("div", "", l.subject));
+      const meta = [c.time, c.room && "ауд. " + c.room, l.teacher].filter(Boolean).join(" · ");
+      box.appendChild(el("div", "meta", meta));
+      card.appendChild(box);
+    });
+    app.appendChild(card);
+    any = true;
+  }
+  if (!any) app.appendChild(el("div", "empty", "Сегодня у этой группы занятий нет"));
+}
+
+function render(csv) {
+  const rows = parseCSV(csv);
+  const groups = getGroups(rows);
+  const sel = document.getElementById("group");
+  let saved = localStorage.getItem(KEY_GROUP);
+  if (!groups.some(g => String(g.col) === saved)) saved = String(groups[0].col);
+  sel.innerHTML = "";
+  groups.forEach(g => {
+    const o = document.createElement("option");
+    o.value = g.col;
+    o.textContent = g.name;
+    sel.appendChild(o);
+  });
+  sel.value = saved;
+  draw(rows, +sel.value);
+  sel.onchange = () => {
+    localStorage.setItem(KEY_GROUP, sel.value);
+    draw(rows, +sel.value);
+  };
+}
+
+function setStatus(s) {
+  document.getElementById("status").textContent = s;
+}
+
+async function load() {
+  try {
+    const res = await fetch(CSV_LINK, { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const text = await res.text();
+    localStorage.setItem(KEY_CSV, text);
+    render(text);
+    const t = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+    setStatus("Обновлено в " + t);
+  } catch (e) {
+    setStatus("Нет связи с таблицей, показана сохраненная версия");
+  }
+}
+
+const cached = localStorage.getItem(KEY_CSV);
+if (cached) {
+  render(cached);
+  setStatus("Сохраненная версия, проверяю обновления...");
+}
+load();
+setInterval(load, REFRESH_MS);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+</script>
+</body>
+</html>
