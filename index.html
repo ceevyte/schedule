@@ -10,11 +10,21 @@
   select{font-size:16px;padding:6px;margin:8px 0;width:100%}
   #status{font-size:13px;color:#666;margin-bottom:12px}
   .warn{background:#fff3cd;padding:8px;border-radius:6px;font-size:14px;margin-bottom:10px}
-  .pair{background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:8px}
-  .num{font-size:13px;color:#2563eb;font-weight:bold}
-  .lesson{margin-top:4px}
-  .meta{font-size:13px;color:#555}
   .empty{color:#666;padding:20px 0;text-align:center}
+  .pair{display:flex;gap:10px;background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:8px}
+  .num{font-size:20px;font-weight:bold;color:#bbb;width:16px;text-align:center}
+  .items{flex:1}
+  .item{padding:4px 8px;border-radius:6px}
+  .item + .item{margin-top:6px}
+  .item.now{background:#e8f0fe;box-shadow:inset 3px 0 0 #2563eb}
+  .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .time{font-size:22px;font-weight:bold}
+  .room{font-size:22px;font-weight:bold;color:#2563eb;white-space:nowrap}
+  .room small{font-size:13px;font-weight:normal;color:#555}
+  .subject{margin-top:2px}
+  .teacher{font-size:13px;color:#555}
+  .left{margin-top:4px;font-size:13px;color:#1d4ed8}
+  .left b{font-size:16px}
 </style>
 </head>
 <body>
@@ -26,10 +36,14 @@
 <script>
 const CSV_LINK = "https://docs.google.com/spreadsheets/d/1bADiWZSKqhi4p92eLVYF-Xd2HOK4TA_-Di2C8bB2Ufk/gviz/tq?tqx=out:csv&gid=1324664116";
 const REFRESH_MS = 120000;
+const TICK_MS = 30000;
 const KEY_CSV = "schedule_csv";
 const KEY_GROUP = "schedule_group";
 const WEEKDAYS = ["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
 const DAY_RE = /^\s*(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)\s+(\d{2}\.\d{2}\.\d{4})/i;
+
+let curRows = null;
+let curCol = 0;
 
 function parseCSV(text) {
   const rows = [];
@@ -86,11 +100,22 @@ function splitLesson(text) {
 
 const fixTime = s => s.replace(/\./g, ":");
 
-function span(a, b) {
-  return fixTime(a.split("-")[0]) + "-" + fixTime((b || a).split("-")[1] || "");
+function toMin(s) {
+  const p = s.trim().split(/[.:]/);
+  return (+p[0]) * 60 + (+p[1] || 0);
 }
 
-function draw(rows, col) {
+function range(t) {
+  const p = t.split("-");
+  return [toMin(p[0]), toMin(p[1] || p[0])];
+}
+
+function fmtMin(n) {
+  return n >= 60 ? Math.floor(n / 60) + " ч " + (n % 60) + " мин" : n + " мин";
+}
+
+function draw() {
+  if (!curRows) return;
   const app = document.getElementById("app");
   app.innerHTML = "";
   const now = new Date();
@@ -100,7 +125,7 @@ function draw(rows, col) {
   document.getElementById("title").textContent =
     today[0].toUpperCase() + today.slice(1) + ", " + todayStr;
 
-  const day = parseDays(rows).find(d => d.name === today);
+  const day = parseDays(curRows).find(d => d.name === today);
   if (!day) {
     app.appendChild(el("div", "empty", "Сегодня в таблице занятий нет"));
     return;
@@ -110,38 +135,89 @@ function draw(rows, col) {
       "В таблице для этого дня стоит дата " + day.date + ". Возможно, неделя еще не обновлена."));
   }
 
-  let any = false;
+  const cards = [];
   for (let i = 0; i < day.rows.length; i += 2) {
     const pr = day.rows.slice(i, i + 2);
     const cells = pr.map(r => ({
       time: (r[2] || "").trim(),
-      text: (r[col] || "").trim(),
-      room: (r[col + 1] || "").trim()
+      text: (r[curCol] || "").trim(),
+      room: (r[curCol + 1] || "").trim()
     }));
     const filled = cells.filter(c => c.text);
     if (!filled.length) continue;
 
     const same = cells.length === 2 && cells[0].text &&
       cells[0].text === cells[1].text && cells[0].room === cells[1].room;
-    const items = same
-      ? [{ ...cells[0], time: span(cells[0].time, cells[1].time) }]
-      : filled.map(c => ({ ...c, time: fixTime(c.time) }));
-
-    const card = el("div", "pair");
-    const num = (pr[0][1] || "").trim() || String(i / 2 + 1);
-    card.appendChild(el("div", "num", num + " пара"));
-    items.forEach(c => {
-      const l = splitLesson(c.text);
-      const box = el("div", "lesson");
-      box.appendChild(el("div", "", l.subject));
-      const meta = [c.time, c.room && "ауд. " + c.room, l.teacher].filter(Boolean).join(" · ");
-      box.appendChild(el("div", "meta", meta));
-      card.appendChild(box);
-    });
-    app.appendChild(card);
-    any = true;
+    let items;
+    if (same) {
+      const start = range(cells[0].time)[0];
+      const end = range(cells[1].time)[1];
+      const label = fixTime(cells[0].time.split("-")[0]) + "-" +
+        fixTime((cells[1].time.split("-")[1] || ""));
+      items = [{ ...cells[0], label, start, end }];
+    } else {
+      items = filled.map(c => {
+        const r = range(c.time);
+        return { ...c, label: fixTime(c.time), start: r[0], end: r[1] };
+      });
+    }
+    cards.push(items);
   }
-  if (!any) app.appendChild(el("div", "empty", "Сегодня у этой группы занятий нет"));
+
+  if (!cards.length) {
+    app.appendChild(el("div", "empty", "Сегодня у этой группы занятий нет"));
+    return;
+  }
+
+  const nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  const all = cards.flat();
+  const current = all.filter(c => c.start <= nowMin && nowMin < c.end);
+  let next = null;
+  if (!current.length) {
+    next = all.filter(c => c.start > nowMin).sort((a, b) => a.start - b.start)[0] || null;
+  }
+
+  cards.forEach((items, idx) => {
+    const card = el("div", "pair");
+    card.appendChild(el("div", "num", String(idx + 1)));
+    const box = el("div", "items");
+
+    items.forEach(c => {
+      const isNow = current.includes(c);
+      const item = el("div", "item" + (isNow ? " now" : ""));
+
+      const top = el("div", "top");
+      top.appendChild(el("div", "time", c.label));
+      if (c.room) {
+        const room = el("div", "room");
+        room.appendChild(el("small", "", "ауд. "));
+        room.appendChild(document.createTextNode(c.room));
+        top.appendChild(room);
+      }
+      item.appendChild(top);
+
+      const l = splitLesson(c.text);
+      item.appendChild(el("div", "subject", l.subject));
+      if (l.teacher) item.appendChild(el("div", "teacher", l.teacher));
+
+      if (isNow) {
+        const left = el("div", "left");
+        left.appendChild(document.createTextNode("осталось "));
+        left.appendChild(el("b", "", String(Math.ceil(c.end - nowMin))));
+        left.appendChild(document.createTextNode(" мин"));
+        item.appendChild(left);
+      } else if (c === next) {
+        const left = el("div", "left");
+        left.appendChild(document.createTextNode("начало через "));
+        left.appendChild(el("b", "", fmtMin(Math.ceil(c.start - nowMin))));
+        item.appendChild(left);
+      }
+      box.appendChild(item);
+    });
+
+    card.appendChild(box);
+    app.appendChild(card);
+  });
 }
 
 function render(csv) {
@@ -158,11 +234,14 @@ function render(csv) {
     sel.appendChild(o);
   });
   sel.value = saved;
-  draw(rows, +sel.value);
+  curRows = rows;
+  curCol = +sel.value;
   sel.onchange = () => {
     localStorage.setItem(KEY_GROUP, sel.value);
-    draw(rows, +sel.value);
+    curCol = +sel.value;
+    draw();
   };
+  draw();
 }
 
 function setStatus(s) {
@@ -190,6 +269,7 @@ if (cached) {
 }
 load();
 setInterval(load, REFRESH_MS);
+setInterval(draw, TICK_MS);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
 </script>
 </body>
