@@ -3,59 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Расписание</title>
+<title>Расписание занятий</title>
 <style>
   :root{
-    --bg:#f3f5f9;
+    --bg:#f5f6fb;
     --card:#ffffff;
-    --text:#1f2937;
-    --muted:#6b7280;
-    --num:#c3c9d6;
-    --accent:#4f6bed;
-    --accent-dark:#3a52c4;
-    --now:#e9eeff;
-    --warn-bg:#fff4dc;
+    --text:#1e2433;
+    --muted:#667085;
+    --num:#cbd0de;
+    --accent:#5b6cf0;
+    --accent-dark:#4453d1;
+    --now:#eceeff;
+    --warn-bg:#fff3d6;
     --warn-text:#7a5b12;
-    --shadow:0 1px 2px rgba(16,24,40,.07);
+    --shadow:0 1px 3px rgba(16,24,40,.08);
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --bg:#14171f;
-      --card:#1d212c;
-      --text:#e6e9f0;
-      --muted:#9aa3b5;
-      --num:#4a5163;
-      --accent:#7d93ff;
-      --accent-dark:#a3b2ff;
-      --now:#262d4a;
+      --bg:#12151c;
+      --card:#1b1f2a;
+      --text:#e8ebf2;
+      --muted:#9ba4b8;
+      --num:#4b5266;
+      --accent:#8a97ff;
+      --accent-dark:#b3bcff;
+      --now:#252a4a;
       --warn-bg:#3a3118;
       --warn-text:#f0d58a;
       --shadow:none;
     }
   }
-  body{font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:14px;background:var(--bg);color:var(--text)}
-  .nav{display:flex;align-items:center;gap:8px;margin:8px 0 4px}
-  .nav h1{flex:1;text-align:center;margin:0;font-size:20px}
+  *{box-sizing:border-box}
+  body{font-family:system-ui,sans-serif;line-height:1.4;max-width:560px;margin:0 auto;padding:16px 16px 32px;background:var(--bg);color:var(--text)}
+  .nav{display:flex;align-items:center;gap:10px;margin:4px 0 6px}
+  .nav h1{flex:1;text-align:center;margin:0;font-size:20px;line-height:1.25}
   .nav button{font-size:22px;line-height:1;width:44px;height:44px;border:none;border-radius:12px;background:var(--card);color:var(--accent);box-shadow:var(--shadow);cursor:pointer}
-  #today{display:block;margin:0 auto;font-size:14px;border:none;background:none;color:var(--accent);padding:6px;cursor:pointer}
+  #today{display:block;margin:0 auto 4px;font-size:14px;border:none;background:none;color:var(--accent);padding:8px 12px;cursor:pointer}
   #today[hidden]{display:none}
-  select{font-size:16px;padding:8px;margin:8px 0;width:100%;border:1px solid var(--num);border-radius:10px;background:var(--card);color:var(--text)}
-  #status{font-size:13px;color:var(--muted);margin-bottom:12px}
-  .warn{background:var(--warn-bg);color:var(--warn-text);padding:10px;border-radius:10px;font-size:14px;margin-bottom:10px}
-  .empty{color:var(--muted);padding:20px 0;text-align:center}
-  .pair{display:flex;gap:12px;background:var(--card);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)}
+  select{font-size:16px;padding:10px 12px;margin:8px 0 6px;width:100%;border:1px solid var(--num);border-radius:10px;background:var(--card);color:var(--text)}
+  #status{font-size:13px;color:var(--muted);margin:0 2px 14px}
+  .warn{background:var(--warn-bg);color:var(--warn-text);padding:12px 14px;border-radius:10px;font-size:14px;margin-bottom:12px}
+  .empty{color:var(--muted);padding:32px 0;text-align:center}
+  .pair{display:flex;gap:14px;background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow)}
   .pair.now{background:var(--now);box-shadow:inset 5px 0 0 var(--accent)}
-  .num{font-size:20px;font-weight:bold;color:var(--num);width:16px;text-align:center}
+  .num{font-size:20px;font-weight:bold;color:var(--num);width:20px;flex:none;text-align:center}
   .pair.now .num{color:var(--accent)}
-  .content{flex:1}
-  .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .content{flex:1;min-width:0}
+  .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
   .time{font-size:22px;font-weight:bold}
   .room{font-size:22px;font-weight:bold;color:var(--accent);white-space:nowrap}
   .room small{font-size:13px;font-weight:normal;color:var(--muted)}
-  .subject{margin-top:2px}
-  .teacher{font-size:13px;color:var(--muted)}
-  .brk{margin-top:4px;font-size:13px;color:var(--muted)}
-  .left{margin-top:6px;font-size:13px;color:var(--accent-dark)}
+  .subject{margin-top:6px}
+  .teacher{margin-top:2px;font-size:13px;color:var(--muted)}
+  .brk{margin-top:8px;font-size:13px;color:var(--muted)}
+  .left{margin-top:8px;font-size:13px;color:var(--accent-dark)}
+  .left + .left{margin-top:2px}
   .left b{font-size:16px}
 </style>
 </head>
@@ -65,9 +67,9 @@
   <h1 id="title">Расписание</h1>
   <button id="next" aria-label="Следующий день">›</button>
 </div>
-<button id="today" hidden>Вернуться к сегодня</button>
-<select id="group"></select>
-<div id="status">Загрузка...</div>
+<button id="today" hidden>Вернуться к сегодняшнему дню</button>
+<select id="group" aria-label="Выберите свою группу"></select>
+<div id="status">Загружаем расписание...</div>
 <div id="app"></div>
 
 <script>
@@ -211,17 +213,17 @@ function draw() {
 
   const day = parseDays(curRows).find(d => d.name === dayName);
   if (!day) {
-    app.appendChild(el("div", "empty", "В этот день в таблице занятий нет"));
+    app.appendChild(el("div", "empty", "На этот день в таблице нет занятий."));
     return;
   }
   if (day.date !== dateStr) {
     app.appendChild(el("div", "warn",
-      "В таблице для этого дня стоит дата " + day.date + ". Возможно, неделя еще не обновлена."));
+      "В таблице для этого дня указана дата " + day.date + ". Возможно, расписание на эту неделю еще не обновили."));
   }
 
   const items = buildItems(day);
   if (!items.length) {
-    app.appendChild(el("div", "empty", "В этот день у группы занятий нет"));
+    app.appendChild(el("div", "empty", "У вашей группы в этот день нет занятий."));
     return;
   }
 
@@ -252,25 +254,25 @@ function draw() {
     const l = splitLesson(c.text);
     content.appendChild(el("div", "subject", l.subject));
     if (l.teacher) content.appendChild(el("div", "teacher", l.teacher));
-    if (c.brk) content.appendChild(el("div", "brk", "перемена " + c.brkLabel));
+    if (c.brk) content.appendChild(el("div", "brk", "Перемена " + c.brkLabel));
 
     if (isNow) {
       const left = el("div", "left");
-      left.append("осталось ", el("b", "", String(Math.ceil(c.end - nowMin))), " мин");
+      left.append("До конца пары осталось ", el("b", "", String(Math.ceil(c.end - nowMin))), " мин");
       content.appendChild(left);
 
       if (c.brk && nowMin < c.brk[0]) {
         const b = el("div", "left");
-        b.append("перемена через ", el("b", "", fmtMin(Math.ceil(c.brk[0] - nowMin))));
+        b.append("Перемена начнется через ", el("b", "", fmtMin(Math.ceil(c.brk[0] - nowMin))));
         content.appendChild(b);
       } else if (c.brk && nowMin < c.brk[1]) {
         const b = el("div", "left");
-        b.append("сейчас перемена, еще ", el("b", "", fmtMin(Math.ceil(c.brk[1] - nowMin))));
+        b.append("Сейчас перемена, она закончится через ", el("b", "", fmtMin(Math.ceil(c.brk[1] - nowMin))));
         content.appendChild(b);
       }
     } else if (c === next) {
       const left = el("div", "left");
-      left.append("начало через ", el("b", "", fmtMin(Math.ceil(c.start - nowMin))));
+      left.append("Эта пара начнется через ", el("b", "", fmtMin(Math.ceil(c.start - nowMin))));
       content.appendChild(left);
     }
 
@@ -317,14 +319,14 @@ async function load() {
     const t = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
     setStatus("Обновлено в " + t);
   } catch (e) {
-    setStatus("Нет связи с таблицей, показана сохраненная версия");
+    setStatus("Не удалось обновить расписание. Показываем сохраненную версию.");
   }
 }
 
 const cached = localStorage.getItem(KEY_CSV);
 if (cached) {
   render(cached);
-  setStatus("Сохраненная версия, проверяю обновления...");
+  setStatus("Показываем сохраненную версию, проверяем обновления...");
 }
 load();
 setInterval(load, REFRESH_MS);
