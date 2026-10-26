@@ -244,10 +244,7 @@ function draw() {
     const top = el("div", "top");
     top.appendChild(el("div", "time", c.label));
     if (c.room) {
-      const room = el("div", "room");
-      room.appendChild(el("small", "", "ауд. "));
-      room.appendChild(document.createTextNode(c.room));
-      top.appendChild(room);
+      top.appendChild(el("div", "room", c.room));
     }
     content.appendChild(top);
 
