@@ -120,7 +120,7 @@ function getGroups(rows) {
   const groups = [];
   for (let c = 3; c < head.length; c++) {
     const n = (head[c] || "").trim();
-    if (n && !/^ауд(итория)?\.?$/i.test(n)) groups.push({ name: n, col: c });
+    groups.push({ name: n, col: c });
   }
   if (groups.length) return groups;
   return [3, 5, 7, 9].map((c, i) => ({ name: "Группа " + (i + 1), col: c }));
@@ -164,7 +164,7 @@ function buildItems(day) {
     const cells = day.rows.slice(i, i + 2).map(r => ({
       time: (r[2] || "").trim(),
       text: (r[curCol] || "").trim(),
-      room: (r[curCol + 1] || "").trim()
+      room: String(r[curCol + 1] ?? "").trim()
     }));
     const filled = cells.filter(c => c.text);
     if (!filled.length) continue;
@@ -243,9 +243,7 @@ function draw() {
     const content = el("div", "content");
     const top = el("div", "top");
     top.appendChild(el("div", "time", c.label));
-    if (c.room) {
-      top.appendChild(el("div", "room", c.room));
-    }
+    top.appendChild(el("div", "room", c.room));
     content.appendChild(top);
 
     const l = splitLesson(c.text);
