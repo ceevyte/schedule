@@ -120,7 +120,7 @@ function getGroups(rows) {
   const groups = [];
   for (let c = 3; c < head.length; c++) {
     const n = (head[c] || "").trim();
-    if (n && n.toLowerCase() !== "ауд") groups.push({ name: n, col: c });
+    if (n && !/^ауд(итория)?\.?$/i.test(n)) groups.push({ name: n, col: c });
   }
   if (groups.length) return groups;
   return [3, 5, 7, 9].map((c, i) => ({ name: "Группа " + (i + 1), col: c }));
